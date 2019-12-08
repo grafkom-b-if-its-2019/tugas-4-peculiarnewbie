@@ -24,8 +24,14 @@
     var yAxis = 1;
     var zAxis = 2;
 
+    var cubeVBO;
+    var cubeVertices = [];
+    var vPosition;
+    var vTexCoord;
+    var vNormal;
+
     function InitCube(){
-      var cubeVertices = [
+      cubeVertices = [
         // x, y, z            u, v         normal
   
         // -0.5,  0.5,  0.5,     0.0, 1.0,  0.0, 0.0, 1.0, // depan, merah, BAD BDC
@@ -73,13 +79,13 @@
 
       ];
   
-      var cubeVBO = gl.createBuffer();
+      cubeVBO = gl.createBuffer();
       gl.bindBuffer(gl.ARRAY_BUFFER, cubeVBO);
       gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cubeVertices), gl.STATIC_DRAW);
   
-      var vPosition = gl.getAttribLocation(program, 'vPosition');
-      var vTexCoord = gl.getAttribLocation(program, 'vTexCoord');
-      var vNormal = gl.getAttribLocation(program, 'vNormal');
+      vPosition = gl.getAttribLocation(program, 'vPosition');
+      vTexCoord = gl.getAttribLocation(program, 'vTexCoord');
+      vNormal = gl.getAttribLocation(program, 'vNormal');
       gl.vertexAttribPointer(
         vPosition,  // variabel yang memegang posisi attribute di shader
         3,          // jumlah elemen per attribute
@@ -107,7 +113,7 @@
 
     glMatrix.mat4.lookAt(vm,
       glMatrix.vec3.fromValues(0.0, 0.0, 0.0),    // posisi kamera
-      glMatrix.vec3.fromValues(0.0, 0.0, 0.0),  // titik yang dilihat; pusat kubus akan kita pindah ke z=-2
+      glMatrix.vec3.fromValues(0.0, 0.0, -2.0),  // titik yang dilihat; pusat kubus akan kita pindah ke z=-2
       glMatrix.vec3.fromValues(0.0, 1.0, 0.0)   // arah atas dari kamera
     );
 
@@ -130,17 +136,14 @@
     var lightPositionLoc = gl.getUniformLocation(program, 'lightPosition');
     var ambientColorLoc = gl.getUniformLocation(program, 'ambientColor');
     var lightColor = [0.5, 0.5, 0.5];
-    var lightPosition = [1., 2., 1.7];
     var ambientColor = glMatrix.vec3.fromValues(0.2, 0.2, 0.2);
     gl.uniform3fv(lightColorLoc, lightColor);
-    gl.uniform3fv(lightPositionLoc, lightPosition);
     gl.uniform3fv(ambientColorLoc, ambientColor);
 
     var nmLoc = gl.getUniformLocation(program, 'normalMatrix');
 
 
-
-    var letterVerticesCount;
+    var letterN;
     var letterBuffer;
     var letterVertices;
     var letterPos;
@@ -149,56 +152,105 @@
       gl.useProgram(program2);
 
       letterVertices = new Float32Array([
-        //x,y         
-        -0.2, -0.5,  0.0,    
-        0.0,  0.5,   0.0,      
-        0.2,  -0.5,  0.0,
+        //x,y  
 
-        -0.2, -0.5,  0.0,
-        -0.15,-0.7,  0.0, 
-        -0.1, -0.5,  0.0,
+        0.15, 0.5,  0.0,
+        0.17, 0.4,  0.0,
+        -0.17, 0.4, 0.0,
 
-        -0.24, -0.7, 0.0,
-        -0.2,  -0.5, 0.0,
-        -0.15, -0.7, 0.0,
+        0.15, 0.5,  0.0,
+        -0.15, 0.5, 0.0,
+        -0.17, 0.4, 0.0,
 
-        0.24, -0.7,  0.0,
-        0.2,  -0.5,  0.0,
-        0.15, -0.7,  0.0,
+        0.07, 0.8,  0.0,
+        0.07, 0.77, 0.0,
+        -0.07, 0.77,0.0,
 
-        0.2,  -0.5,  0.0,
-        0.15, -0.7,  0.0,
-        0.1,  -0.5,  0.0,
+        0.07, 0.8,  0.0,
+        -0.07, 0.8, 0.0,
+        -0.07, 0.77,0.0,
+
+        -0.025, 1.0,0.0,
+        -0.3, -0.0, 0.0,
+        -0.2, -0.0, 0.0,
+        
+        0.025, 1.0, 0.0,
+        0.2, -0.0,  0.0,
+        0.3, -0.0,  0.0,
+
+        //NRP 0089
+        1.7, 0.0, 8.9,
+
+        
       ]);
 
-      letterVerticesCount = letterVertices.length/2;
+      letterN = letterVertices.length/2;
 
       letterVertices = matrixScaling(letterVertices, 0.3);
 
       letterBuffer = gl.createBuffer();
       gl.bindBuffer(gl.ARRAY_BUFFER, letterBuffer);
-      gl.bufferData(gl.ARRAY_BUFFER, letterVertices, gl.STATIC_DRAW);
 
-      letterPos = gl.getAttribLocation(program2, 'vPosition');
-      var vColor = gl.getAttribLocation(program2, 'vColor');
+      letterPos = gl.getAttribLocation(program2, 'aPos');
       var projection = gl.getUniformLocation(program2, 'projection');
       var modelView = gl.getUniformLocation(program2, 'modelView');
 
       gl.uniformMatrix4fv(projection, false, pm);
       gl.uniformMatrix4fv(modelView, false, vm);
 
+      
+      gl.bufferData(gl.ARRAY_BUFFER, letterVertices, gl.STATIC_DRAW);
       gl.vertexAttribPointer(
           letterPos, 3, gl.FLOAT, false, 0, 0
         );
-      // gl.vertexAttribPointer(
-      //   vColor, 3, gl.FLOAT, gl.FALSE, 5 * Float32Array.BYTES_PER_ELEMENT, 2 * Float32Array.BYTES_PER_ELEMENT
-      // );
 
       gl.enableVertexAttribArray(letterPos);
 
     }
 
+    var moveSpeed = [0.02, 0.015, 0.01];
+    var rotateSpeed = 10;
+    var rotateDir = 1;
+    var keyPress = {};
+    var moveRate = 0.0001;
+    var center = [0.0, 0.0, 0.0];
+    var hwatsThis = false;
+    var furthestPosition = [1, 14, 32, 33];
 
+    function LetterAnimation(){
+      gl.useProgram(program2);
+      gl.bindBuffer(gl.ARRAY_BUFFER, letterBuffer);
+      letterVertices = matrixTranslating(letterVertices, moveSpeed[0], moveSpeed[1], moveSpeed[2]);
+      for(var i = 0; i < 3; i++){
+        center[i] += moveSpeed[i];
+      }
+      letterVertices = matrixRotating(letterVertices, rotateSpeed * rotateDir, center[0], center[2]);
+      gl.bufferData(gl.ARRAY_BUFFER, letterVertices, gl.STATIC_DRAW);
+      gl.vertexAttribPointer(letterPos, 3, gl.FLOAT, false, 0, 0);
+      gl.enableVertexAttribArray(letterPos);
+      gl.useProgram(program);
+    }
+
+    function OnCollisionTrigger(){
+      hwatsThis = false;
+      var collisionCheck = 0;
+      for(var i = 0; i < 4; i++){
+        for(var j = 0; j<3; j++){
+          collisionCheck = furthestPosition[i] * 3;
+          if(letterVertices[collisionCheck + j] >= 0.5 || letterVertices[collisionCheck + j] <= -0.5){
+            moveSpeed[j] *= -1;
+            if(j == 0 || j==2){
+              rotateDir *= -1;
+            }
+          hwatsThis = true;
+          break;
+          }  
+        }
+        if(hwatsThis){
+          break;
+        }
+      }
+    }
 
     function onKeyPress(event) {
       if (event.keyCode == 88 || event.keyCode == 120) {
@@ -253,28 +305,48 @@
     var moveRate = 0.0001;
     var center = [0.0, 0.0, 0.0]
 
-    function BounceLetter(){
-      // gl.useProgram(program2);
-      gl.bindBuffer(gl.ARRAY_BUFFER, letterBuffer);
-      letterVertices = matrixTranslating(letterVertices, bouncingSpeed[0], bouncingSpeed[1], bouncingSpeed[2]);
-      for(var i = 0; i < 3; i++){
-        center[i] += bouncingSpeed[i];
-      }
-      letterVertices = matrixRotating(letterVertices, rotateSpeed * rotateDir, center[0], center[2]);
-    }
+    // function BounceLetter(){
+    //   // gl.useProgram(program2);
+    //   gl.bindBuffer(gl.ARRAY_BUFFER, letterBuffer);
+    //   letterVertices = matrixTranslating(letterVertices, bouncingSpeed[0], bouncingSpeed[1], bouncingSpeed[2]);
+    //   for(var i = 0; i < 3; i++){
+    //     center[i] += bouncingSpeed[i];
+    //   }
+    //   letterVertices = matrixRotating(letterVertices, rotateSpeed * rotateDir, center[0], center[2]);
+    // }
 
+    gl.useProgram(program2);
+    InitLetter();
     function render() {
       
 
       gl.useProgram(program);
       InitCube();
       
+      
+      
       var mm = glMatrix.mat4.create();
       glMatrix.mat4.translate(mm, mm, [0.0, 0.0, -2.0]);
-      glMatrix.mat4.rotateZ(mm, mm, theta[zAxis]);
-      glMatrix.mat4.rotateY(mm, mm, theta[yAxis]);
-      glMatrix.mat4.rotateX(mm, mm, theta[xAxis]);
+
+      var otherLoc = gl.getUniformLocation(program, 'otherMatrix');
+      var otherObject = glMatrix.mat4.create();
+
+      glMatrix.mat4.multiply(otherObject, vm, mm);
+      glMatrix.mat4.multiply(otherObject, pm, otherObject);
+
+      glMatrix.mat4.rotateZ(otherObject, otherObject, theta[zAxis]);
+      glMatrix.mat4.rotateY(otherObject, otherObject, theta[yAxis]);
+      glMatrix.mat4.rotateX(otherObject, otherObject, theta[xAxis]);
+
+      gl.uniformMatrix4fv(otherLoc, false, otherObject);
+
+      glMatrix.mat4.translate(mm, mm, [0.0, 0.0, 2.0]);
       gl.uniformMatrix4fv(mmLoc, false, mm);
+
+      var lightPosition = [letterVertices[39], letterVertices[40], letterVertices[41]];
+      console.log(lightPosition);
+      //var lightPosition = [0.0, 0.0, -2.0];
+      gl.uniform3fv(lightPositionLoc, lightPosition);
 
       // Perhitungan modelMatrix untuk vektor normal
       var nm = glMatrix.mat3.create();
@@ -284,18 +356,24 @@
       // Bersihkan buffernya canvas
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     
+      gl.enableVertexAttribArray(vPosition);
+      gl.enableVertexAttribArray(vTexCoord);
+      gl.enableVertexAttribArray(vNormal);
       gl.drawArrays(gl.TRIANGLES, 0, 36);
 
 
       gl.useProgram(program2);
-      InitLetter();
+      
       // BounceLetter(); 
 
+      OnCollisionTrigger();
+      LetterAnimation();
+
+      
+      gl.drawArrays(gl.TRIANGLES, 0, letterN);
+      
       gl.useProgram(program);
       
-      gl.drawArrays(gl.TRIANGLES, 0, letterVerticesCount);
-
-
       requestAnimationFrame(render); 
     }
     // Bersihkan layar jadi hitam
