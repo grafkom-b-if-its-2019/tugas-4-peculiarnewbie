@@ -136,7 +136,8 @@
     var lightPositionLoc = gl.getUniformLocation(program, 'lightPosition');
     var ambientColorLoc = gl.getUniformLocation(program, 'ambientColor');
     var lightColor = [0.5, 0.5, 0.5];
-    var ambientColor = glMatrix.vec3.fromValues(0.2, 0.2, 0.2);
+    //NRP 05111740000089
+    var ambientColor = glMatrix.vec3.fromValues(0.0, 0.8, 0.9);
     gl.uniform3fv(lightColorLoc, lightColor);
     gl.uniform3fv(ambientColorLoc, ambientColor);
 
